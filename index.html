@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>高山468工時</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --nogizaka-purple: #742174;
+            --soft-purple: #F3E5F5;
+            --weekly-volt: rgb(206, 255, 0);
+            --danger-red: #FF0000;
+            --gold-wealth: #D4AF37;
+            --silver-medal: #C0C0C0;
+            --soft-beige: #FDF5E6;
+            --soft-pink: #FCE4EC;
+            --warning-orange: #FF9800;
+            --other-month-bg: #FFF3E0; 
+            --other-month-text: #E65100;
+        }
+        body { font-family: "Segoe UI", sans-serif; background: #FFFFFF; margin: 0; padding-top: 85px; overflow-x: hidden; }
+        
+        .header-nav { 
+            position: fixed; top: 0; left: 0; right: 0; z-index: 1000; 
+            background: #FFF; border-bottom: 2px solid #EEE;
+            padding: 0 10px; display: flex; align-items: center; 
+            justify-content: space-between; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            height: 75px;
+        }
+        .nav-left { display: flex; gap: 4px; flex: 1.5; align-items: center; }
+        .nav-center { display: flex; align-items: baseline; justify-content: center; flex: 4; gap: 10px; }
+        .nav-right { display: flex; flex: 1.5; justify-content: flex-end; position: relative; }
+
+        .rate-group { display: flex; align-items: baseline; gap: 4px; }
+        .label-text { font-size: 12px; font-weight: bold; color: #333; white-space: nowrap; }
+        .rate-num { font-size: 13px; font-weight: 900; color: var(--nogizaka-purple); }
+        .gold-val { color: var(--gold-wealth); font-size: 18px; font-weight: 900; }
+        
+        select { padding: 4px; border-radius: 6px; border: 1px solid #CCC; font-weight: bold; font-size: 13px; color: var(--nogizaka-purple); }
+
+        .btn-main { background: var(--nogizaka-purple); color: white; padding: 8px 12px; border-radius: 8px; border: none; font-weight: bold; font-size: 14px; cursor: pointer; }
+        .menu-dropdown { 
+            display: none; position: absolute; top: 45px; right: 0; 
+            background: white; border: 1px solid #DDD; border-radius: 8px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 120px; z-index: 3000; 
+        }
+        .menu-dropdown button { 
+            width: 100%; padding: 12px; border: none; background: none; 
+            text-align: left; font-size: 14px; font-weight: bold; border-bottom: 1px solid #EEE; 
+        }
+        .menu-dropdown button:last-child { border-bottom: none; color: var(--danger-red); }
+
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+        .modal-content { background: white; margin: 2% auto; padding: 15px; width: 92vw; max-width: 800px; border-radius: 12px; position: relative; box-sizing: border-box; }
+        
+        .stats-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-right: 30px; }
+        .chart-container { position: relative; width: 100%; height: 60vh; max-height: 400px; }
+        .close-btn { position: absolute; right: 10px; top: 5px; font-size: 28px; cursor: pointer; color: #999; }
+
+        #capture-area { padding: 5px; background: white; }
+        .week-container { margin-bottom: 15px; border-bottom: 4px solid #F5F5F5; }
+        .grid { display: grid; grid-template-columns: 50px repeat(7, 1fr) 75px 75px; gap: 3px; }
+        .label-cell { border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: bold; min-height: 55px; text-align: center; font-size: 12px; }
+        .bg-purple { background: var(--soft-purple); color: var(--nogizaka-purple); }
+        .bg-blue { background: #E3F2FD; color: #0277BD; }
+        .bg-orange-soft { background: var(--other-month-bg) !important; color: var(--other-month-text) !important; }
+        .date-val { font-size: 18px; font-weight: 900; }
+        .sun-red { color: var(--danger-red) !important; }
+        .text-red { color: #FF0000 !important; }
+        .input-cell { background: #FFF; border: 1px dashed #DDD; border-radius: 6px; min-height: 55px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; cursor: pointer; }
+        .is-new-wing { background: var(--gold-wealth) !important; border: 1px solid #B8860B !important; color: #FFF !important; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
+        .is-old-wing { background: var(--silver-medal) !important; border: 1px solid #A9A9A9 !important; color: #333 !important; }
+        .circle-container { width: 68px; height: 68px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .this-week-circle { background: var(--weekly-volt); color: #000; font-weight: bold; }
+        .accum-circle { background: #B39DDB; color: white; }
+        .circle-num { font-weight: 900; font-size: 20px; }
+        .bg-danger { background: var(--danger-red) !important; animation: blinker 0.6s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0.5; } }
+    </style>
+</head>
+<body>
+
+<div class="header-nav">
+    <div class="nav-left">
+        <select id="yearSelect" onchange="manualNavigate()"></select>
+        <select id="monthSelect" onchange="manualNavigate()"></select>
+    </div>
+    <div class="nav-center">
+        <div class="rate-group"><span class="label-text">時薪:</span><span class="rate-num" id="currentRateDisp">$70</span></div>
+        <div class="rate-group"><span style="font-size: 16px;">💰</span><span class="gold-val">$<span id="totalPay">0</span></span></div>
+    </div>
+    <div class="nav-right">
+        <button class="btn-main" onclick="toggleMenu()">⚙️ 功能</button>
+        <div id="actionMenu" class="menu-dropdown">
+            <button onclick="showStats()">📊 統計圖表</button>
+            <button onclick="manageSalary()">📅 設定加薪</button>
+            <button onclick="takeScreenshot()">📸 存圖分享</button>
+            <button onclick="confirmReset()">💀 數據重置</button>
+        </div>
+    </div>
+</div>
+
+<div id="capture-area"><div id="app-content"></div></div>
+
+<div id="wingModal" class="modal">
+    <div class="modal-content" style="max-width: 320px; text-align: center; border: 3px solid var(--nogizaka-purple);">
+        <h3 style="margin-top:0; color: var(--nogizaka-purple);">你的斧頭掉進哪個場地？</h3>
+        <div style="display: flex; gap: 20px; justify-content: center; padding: 10px;">
+            <div onclick="chooseWing('N')" style="cursor:pointer;">
+                <div style="font-size: 50px;">🪓</div><div style="font-size: 12px; font-weight: 900; color: #B8860B;">金色的斧頭 (N)</div>
+            </div>
+            <div onclick="chooseWing('O')" style="cursor:pointer;">
+                <div style="font-size: 50px; filter: grayscale(1);">🪓</div><div style="font-size: 12px; font-weight: 900; color: #777;">銀色的斧頭 (O)</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="statsModal" class="modal">
+    <div class="modal-content" id="stats-area">
+        <span class="close-btn" onclick="closeStats()">&times;</span>
+        <div class="stats-header">
+            <h2 id="statsTitle" style="color: var(--nogizaka-purple); font-size: 16px; margin: 0;">年度薪金統計</h2>
+            <button class="btn-main" style="font-size: 12px; padding: 5px 10px;" onclick="saveStatsJPG()">📸 存圖</button>
+        </div>
+        <div class="chart-container">
+            <canvas id="salaryChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<input type="number" id="hiddenNumberTrigger" style="position:fixed; top:-100px; opacity:0;" inputmode="decimal">
+
+<script>
+    let db = JSON.parse(localStorage.getItem('WorkData_V60')) || {};
+    let raises = JSON.parse(localStorage.getItem('SalaryRaises_V50')) || [{date: '2025-12-28', rate: 70}];
+    let currentEditingKey = null;
+
+    function toggleMenu() {
+        const m = document.getElementById('actionMenu');
+        m.style.display = (m.style.display === 'block') ? 'none' : 'block';
+    }
+
+    window.onclick = function(event) {
+        if (!event.target.matches('.btn-main')) {
+            document.getElementById('actionMenu').style.display = 'none';
+        }
+    }
+
+    function setup() {
+        const yS = document.getElementById('yearSelect');
+        const mS = document.getElementById('monthSelect');
+        for (let y = 2026; y <= 2035; y++) yS.add(new Option(y + "年", y));
+        for (let m = 1; m <= 12; m++) mS.add(new Option(m + "月", m));
+        yS.value = 2026; mS.value = new Date().getMonth() + 1;
+        initView();
+    }
+
+    function getRateAtDate(dateStr) {
+        const sorted = [...raises].sort((a, b) => new Date(b.date) - new Date(a.date));
+        const target = new Date(dateStr);
+        for (let r of sorted) { if (target >= new Date(r.date)) return r.rate; }
+        return raises[0].rate;
+    }
+
+    function updateRateDisplay(y, m) {
+        const disp = document.getElementById('currentRateDisp');
+        const mStr = String(m).padStart(2,'0');
+        const firstDayStr = `${y}-${mStr}-01`;
+        const initialRate = getRateAtDate(firstDayStr);
+        
+        // 修正：搜尋該月是否有「1日之後」的加薪
+        const monthlyRaise = raises.find(r => {
+            const rDate = new Date(r.date);
+            return rDate.getFullYear() == y && (rDate.getMonth() + 1) == m && rDate.getDate() > 1;
+        });
+
+        if (monthlyRaise) {
+            const rDay = new Date(monthlyRaise.date).getDate();
+            disp.innerText = `$${initialRate} | ${rDay}日起: $${monthlyRaise.rate}`;
+        } else {
+            disp.innerText = `$${initialRate}`;
+        }
+    }
+
+    function edit(k) { currentEditingKey = k; document.getElementById('wingModal').style.display = 'block'; }
+
+    function chooseWing(wing) {
+        document.getElementById('wingModal').style.display = 'none';
+        const oldData = db[currentEditingKey] || { val: 0 };
+        const trigger = document.getElementById('hiddenNumberTrigger');
+        trigger.focus();
+        setTimeout(() => {
+            const rawV = prompt(`你的斧頭掉了多長時間?`, oldData.val || "");
+            trigger.blur();
+            if (rawV === null) return;
+            const v = parseFloat(rawV);
+            if (isNaN(v) || (v > 0 && v < 3) || (v % 0.25 !== 0)) { 
+                alert("錯！請誠實回答！"); 
+                return; 
+            }
+            if (v === 0) delete db[currentEditingKey];
+            else db[currentEditingKey] = { val: v, wing: wing };
+            localStorage.setItem('WorkData_V60', JSON.stringify(db));
+            initView();
+        }, 50);
+    }
+
+    function renderWeek(wStart) {
+        const currentSelMonth = parseInt(document.getElementById('monthSelect').value) - 1;
+        const section = document.createElement('div');
+        section.className = 'week-container';
+        const grid = document.createElement('div');
+        grid.className = 'grid';
+        grid.innerHTML = `<div class="label-cell bg-purple">時段</div>`;
+        for(let i=0; i<7; i++){
+            let d = new Date(wStart); d.setDate(d.getDate()+i);
+            const isDiff = d.getMonth() !== currentSelMonth;
+            grid.innerHTML += `<div class="label-cell ${isDiff ? 'bg-orange-soft' : 'bg-blue'}"><div><span style="font-size:9px;">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][i]}</span><br><span class="date-val ${i===0?'sun-red':''}">${d.getDate()}</span></div></div>`;
+        }
+        grid.innerHTML += `<div class="label-cell" style="background:#E8F5E9; color:#2E7D32;">本週</div><div class="label-cell bg-purple">累計</div>`;
+
+        ['AM','PM'].forEach(t => {
+            grid.innerHTML += `<div class="label-cell bg-purple">${t}</div>`;
+            for(let i=0; i<7; i++){
+                let d = new Date(wStart); d.setDate(d.getDate()+i);
+                const k = `${t}-${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+                const isDiff = d.getMonth() !== currentSelMonth;
+                const data = db[k];
+                let extraClass = data ? (data.wing === 'N' ? 'is-new-wing' : 'is-old-wing') : (isDiff ? 'bg-orange-soft' : '');
+                grid.innerHTML += `<div class="input-cell ${extraClass}" onclick="edit('${k}')">${data ? data.val : ''}</div>`;
+            }
+        });
+
+        let wT = 0, roll = 0;
+        for(let i=0; i<7; i++) {
+            let d = new Date(wStart); d.setDate(d.getDate()+i);
+            wT += (db[`AM-${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`]?.val||0) + (db[`PM-${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`]?.val||0);
+        }
+        for(let j=0; j<28; j++) {
+            let rd = new Date(wStart); rd.setDate(rd.getDate()+6-j);
+            roll += (db[`AM-${rd.getFullYear()}-${rd.getMonth()+1}-${rd.getDate()}`]?.val||0) + (db[`PM-${rd.getFullYear()}-${rd.getMonth()+1}-${rd.getDate()}`]?.val||0);
+        }
+        let accumClass = 'accum-circle';
+        if (roll >= 68) accumClass += ' bg-danger';
+        else if (roll >= 63) accumClass += ' bg-warning';
+
+        grid.innerHTML += `
+            <div style="grid-area: 2/9/4/10" class="circle-container this-week-circle"><span style="font-size:9px">WEEK</span><span class="circle-num ${wT>=17?'text-red':''}">${wT}</span></div>
+            <div style="grid-area: 2/10/4/11" class="circle-container ${accumClass}"><span style="font-size:9px">4-WK</span><span class="circle-num">${roll}</span></div>`;
+        section.appendChild(grid);
+        document.getElementById('app-content').appendChild(section);
+    }
+
+    function initView() {
+        document.getElementById('app-content').innerHTML = '';
+        const y = document.getElementById('yearSelect').value;
+        const m = document.getElementById('monthSelect').value;
+        
+        let firstDayOfMonth = new Date(y, m - 1, 1);
+        let lastDayOfMonth = new Date(y, m, 0);
+        let start = new Date(firstDayOfMonth);
+        start.setDate(firstDayOfMonth.getDate() - firstDayOfMonth.getDay());
+
+        // 修正：動態計算所需週數，避免過度跨月
+        const totalDaysNeeded = firstDayOfMonth.getDay() + lastDayOfMonth.getDate();
+        const rowsNeeded = Math.ceil(totalDaysNeeded / 7);
+        
+        for(let i=0; i < rowsNeeded; i++) { 
+            renderWeek(new Date(start)); 
+            start.setDate(start.getDate() + 7); 
+        }
+        calcSalary();
+        updateRateDisplay(y, m);
+    }
+
+    function calcSalary() {
+        const y = document.getElementById('yearSelect').value;
+        const m = document.getElementById('monthSelect').value;
+        let total = 0;
+        for(let k in db) {
+            const p = k.split('-');
+            if (p[1] == y && p[2] == m) total += db[k].val * getRateAtDate(`${p[1]}-${p[2].padStart(2,'0')}-${p[3].padStart(2,'0')}`);
+        }
+        document.getElementById('totalPay').innerText = total.toLocaleString();
+    }
+
+    function showStats() {
+        document.getElementById('actionMenu').style.display = 'none';
+        const year = document.getElementById('yearSelect').value;
+        const monthlyTotals = new Array(12).fill(0);
+        for(let k in db) {
+            const p = k.split('-');
+            if (p[1] === year) monthlyTotals[parseInt(p[2])-1] += db[k].val * getRateAtDate(`${p[1]}-${p[2].padStart(2,'0')}-${p[3].padStart(2,'0')}`);
+        }
+        document.getElementById('statsTitle').innerText = `${year} 年度薪金統計`;
+        document.getElementById('statsModal').style.display = 'block';
+        const ctx = document.getElementById('salaryChart').getContext('2d');
+        if (window.chartInstance) window.chartInstance.destroy();
+        
+        const topLabelsPlugin = {
+            id: 'topLabels',
+            afterDatasetsDraw(chart) {
+                const { ctx, data, scales: { x, y } } = chart;
+                ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+                ctx.font = 'bold 11px Arial'; ctx.fillStyle = '#742174';
+                data.datasets[0].data.forEach((value, index) => {
+                    if (value > 0) {
+                        const xPos = x.getPixelForValue(index);
+                        const yPos = y.getPixelForValue(value);
+                        ctx.fillText('$' + value.toLocaleString(), xPos, yPos - 5);
+                    }
+                });
+                ctx.restore();
+            }
+        };
+
+        window.chartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['1','2','3','4','5','6','7','8','9','10','11','12'],
+                datasets: [{ data: monthlyTotals, backgroundColor: '#742174', borderRadius: 4 }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                layout: { padding: { top: 20 } },
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            },
+            plugins: [topLabelsPlugin]
+        });
+    }
+
+    function closeStats() { document.getElementById('statsModal').style.display = 'none'; }
+    function manualNavigate() { initView(); window.scrollTo(0,0); }
+    function manageSalary() {
+        const d = prompt("加薪日期 (YYYY-MM-DD):", new Date().toISOString().split('T')[0]);
+        if (!d) return;
+        const r = prompt("新時薪:");
+        if (r) { 
+            raises.push({date: d, rate: parseFloat(r)}); 
+            raises.sort((a,b) => new Date(a.date) - new Date(b.date));
+            localStorage.setItem('SalaryRaises_V50', JSON.stringify(raises)); 
+            initView(); 
+        }
+    }
+    async function takeScreenshot() {
+        const canvas = await html2canvas(document.getElementById('capture-area'), { scale: 2 });
+        const link = document.createElement('a');
+        link.download = `Report.jpg`; link.href = canvas.toDataURL("image/jpeg", 0.9); link.click();
+    }
+    async function saveStatsJPG() {
+        const area = document.getElementById('stats-area');
+        const canvas = await html2canvas(area, { scale: 2 });
+        const link = document.createElement('a');
+        link.download = `Stats.jpg`; link.href = canvas.toDataURL("image/jpeg", 0.9); link.click();
+    }
+    function confirmReset() { if(confirm("💀 確定重置數據？")) { localStorage.clear(); location.reload(); } }
+    setup();
+</script>
+</body>
+</html>
